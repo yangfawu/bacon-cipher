@@ -2,8 +2,92 @@
 
 // Add other #includes here if you want.
 
+// returns the bacon code of the letter, -1 otherwise
+int char_2_bacon_code(char letter) {
+    // if lowercase letters
+    if (letter > 96 && letter < 123)
+        return letter - 97;
+    
+    // if uppercase letters
+    if (letter > 64 && letter < 91)
+        return letter - 65;
+    
+    // if space to )
+    if (letter > 31 && letter < 42)
+        return letter - 32 + 26;
+    
+    // if , to ;
+    if (letter > 43 && letter < 60)
+        return letter - 44 + 36;
+
+    // if ?
+    if (letter == 63)
+        return letter - 63 + 52;
+    
+    // if \0
+    if (letter == 0)
+        return 63;
+    
+    return -1;
+}
+
+int min(int a, int b) {
+    return a < b ? a : b;
+}
+
 int encrypt(const char *plaintext, char *ciphertext) {
-    return -1000;
+    int p_n = strlen(plaintext);
+    int c_n = strlen(ciphertext);
+
+    // first we find all valid indexes we can update in ciphertext
+    int valid_indexes[c_n + 1];
+    int valid_size = 0;
+    for (int c_i=0; c_i<c_n; c_i++) {
+        if (isalpha(ciphertext[c_i])) {
+            valid_indexes[valid_size] = c_i;
+            valid_size++;
+        }
+    }
+
+    // we compute the max number of bacon codes we can put
+    int max_num_bacon_codes = valid_size / 6;
+
+    // if we can't put any, then that means we don't even have space for EOM code
+    if (max_num_bacon_codes < 1)
+        return -1;
+    
+    // we compute the number of bacon codes (excluding EOM) we can actually put from plaintext
+    int num_bacon_codes = min(p_n, max_num_bacon_codes - 1);
+
+    // put the non-EOM codes
+    int valid_i = 0;
+    for (int i=0; i<num_bacon_codes; i++) {
+        int bacon_code = char_2_bacon_code(plaintext[i]);
+
+        // we add this case in case plaintext input is invalid
+        if (bacon_code < 0)
+            return -2;
+        
+        for (int j=0; j<6; j++) {
+            int c_i = valid_indexes[valid_i];
+
+            if ((bacon_code >> (5 - j)) & 1)
+                ciphertext[c_i] = toupper(ciphertext[c_i]);
+            else
+                ciphertext[c_i] = tolower(ciphertext[c_i]);
+
+            valid_i++;
+        }
+    }
+
+    // then we put the EOM
+    for (int i=0; i<6; i++) {
+        int c_i = valid_indexes[valid_i];
+        ciphertext[c_i] = toupper(ciphertext[c_i]);
+        valid_i++;
+    }
+    
+    return num_bacon_codes;
 }
 
 // return ascii character associated with code, -1 otherwise
@@ -59,9 +143,9 @@ int decrypt(const char *ciphertext, char *plaintext) {
     int temp_digits = 0;
     for (int i=0; i<c_n; i++) {
         char c = ciphertext[i];
-        if (c == ' ')
-            continue;
-        if (ispunct(c))
+
+        // we only want to read alphabet lettters
+        if (!isalpha(c))
             continue;
         
         temp<<= 1;
