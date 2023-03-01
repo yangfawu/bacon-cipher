@@ -150,6 +150,7 @@ int decrypt(const char *ciphertext, char *plaintext) {
     int decoded_buffer_i = 0;
 
     int found_eom = 0;
+    int found_invalid_code = 0;
     for (int i=0; i<max_bacon_codes; i++) {
         // generate bacon_code
         unsigned int bacon_code = 0;
@@ -162,8 +163,10 @@ int decrypt(const char *ciphertext, char *plaintext) {
         char c = bacon_code_2_char(bacon_code);
 
         // if code is invalid, our character will be negative
-        if (c < 0)
-            return -3;
+        if (c < 0) {
+            found_invalid_code = 1;
+            continue;
+        }
         
         // inseer code
         decoded_buffer[decoded_buffer_i] = c;
@@ -178,6 +181,10 @@ int decrypt(const char *ciphertext, char *plaintext) {
     // if we finish loop without seeing EOM, then we know it is invalid
     if (!found_eom)
         return -2;
+    
+    // if we encounter invalid codee deespite seeing EOM
+    if (found_invalid_code)
+        return -3;
 
     // right now, decoded_buffer_i is the total number of bacon codes we have (including eom)
 
