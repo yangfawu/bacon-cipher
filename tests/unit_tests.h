@@ -14,6 +14,6 @@
 #define TEST_TIMEOUT 30 
 
 int run_using_system(char *test_name);
-void assert_normal_exit(int status);
-void assert_error_exit(int status);
-void assert_no_valgrind_errors(int status);
+void expect_normal_exit(int status);
+void expect_error_exit(int status);
+void expect_no_valgrind_errors(int status);

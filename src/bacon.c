@@ -130,67 +130,70 @@ int decrypt(const char *ciphertext, char *plaintext) {
     // plaintext_length cannot be 0
     if (!p_n)
         return -1;
-    
-    // stores the current length of the decoded text
-    int p_i = 0;
-    char decoded_buffer[p_n + 1];
-    
-    // stores whether or not we found EOM bacon code
-    int found_eom = 0;
 
-    // convert into binary based on upper/lower case
-    unsigned int temp = 0;
-    int temp_digits = 0;
+    // first convert cipher text into pure binary (we know it cannot be any longer than ciphertxt w/o its null char)
+    unsigned int binary_ciphertext[c_n];
+    int b_i = 0;
     for (int i=0; i<c_n; i++) {
         char c = ciphertext[i];
-
-        // we only want to read alphabet lettters
-        if (!isalpha(c))
-            continue;
-        
-        temp<<= 1;
-        temp|= !!isupper(c);
-        temp_digits++;
-        
-        // check if this is the 6th letter
-        if (temp_digits == 6) {
-            char decoded_letter = bacon_code_2_char(temp);
-            
-            // if letter < 0, then bacon_code is invalid
-            if (decoded_letter < 0)
-                return -3;
-            
-            // if decoded_buffer already size plaintext, then we can't add more characters
-            if (p_i == p_n)
-                return -4;
-            decoded_buffer[p_i] = decoded_letter;
-            
-            // check if letter is \0
-            if (decoded_letter == 0) {
-                found_eom = 1;
-                // we don't add here because NULL does not add to the length
-                break;
-            }
-            
-            // we add here because letter is not NULL
-            p_i++;
-                
-            // reset temp
-            temp = 0;
-            temp_digits = 0;
+        if (isalpha(c)) {
+            binary_ciphertext[b_i] = !!isupper(c);
+            b_i++;
         }
     }
-    
-    // we can read cipher text SUCCESSfully without ever reading EOM
+
+    // then we break binary into bacon code chunks
+    int max_bacon_codes = b_i / 6;
+
+    // stores the current length of the decoded text
+    char decoded_buffer[max_bacon_codes];
+    int decoded_buffer_i = 0;
+
+    int found_eom = 0;
+    for (int i=0; i<max_bacon_codes; i++) {
+        // generate bacon_code
+        unsigned int bacon_code = 0;
+        for (int j=0; j<6; j++) {
+            bacon_code<<= 1;
+            bacon_code|= binary_ciphertext[6*i + j];
+        }
+
+        // we try to get the char from the bacon code
+        char c = bacon_code_2_char(bacon_code);
+
+        // if code is invalid, our character will be negative
+        if (c < 0)
+            return -3;
+        
+        // inseer code
+        decoded_buffer[decoded_buffer_i] = c;
+        decoded_buffer_i++;
+
+        if (c == 0) {
+            found_eom = 1;
+            break;
+        }
+    }
+
+    // if we finish loop without seeing EOM, then we know it is invalid
     if (!found_eom)
         return -2;
+
+    // right now, decoded_buffer_i is the total number of bacon codes we have (including eom)
+
+    // check if plaintext has enough space for all bacon codes
+    if ((p_n + 1) < decoded_buffer_i) {
+        // then we cut the decoded_buffer down to the size of plaintext plus its null character
+        decoded_buffer_i = p_n + 1;
+
+        // we modify the buffer at index p_n to make it end
+        decoded_buffer[p_n] = 0;
+    }
     
     // now we copy decoded_buffer to plaintext
-    for (int i=0; i<p_i; i++)
+    for (int i=0; i<decoded_buffer_i; i++)
         plaintext[i] = decoded_buffer[i];
-    // append null characters at the end
-    for (int j=p_i; j<p_n; j++)
-        plaintext[j] = 0;
     
-    return p_i;
+    // we subtract 1 because note earlier we said decoded_buffer_i is the length (including eom)
+    return decoded_buffer_i - 1;
 }
